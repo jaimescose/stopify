@@ -1,2 +1,2 @@
 # stopify
-Service to tweet weekly the tracks yo have listened the most
+Service to tweet weekly the tracks you have listened the most
