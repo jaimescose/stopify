@@ -1,11 +1,17 @@
 {% extends 'layout.html' %}
 
 {% block content %}
-<div class="container text-center">
-  <h1>Stopify</h1>
-  <p>Weekly tweets with the tracks you have listened the most</p>
-  <form method="POST" action="{{ url_for('index') }}">
-    <button class="btn btn-success btn-lg" value="submit">Try it!</button>
-  </form>
-</div>
+<header class="masthead">
+  <div class="container h-100">
+    <div class="row h-100 align-items-center">
+      <div class="col-12 text-center">
+        <h1 class="font-weight-light">Stopify</h1>
+        <p class="lead">Weekly tweets with the tracks you have listened the most</p>
+        <form method="POST" action="{{ url_for('index') }}">
+          <button class="btn btn-success btn-lg" value="submit">Try it!</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</header>
 {% endblock content %}
