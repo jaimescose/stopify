@@ -9,7 +9,6 @@ db = SQLAlchemy(app)
 
 import settings
 import requests
-from spotify.main import get_user_top_tracks
 
 from models import User, SpotifyProfile
 

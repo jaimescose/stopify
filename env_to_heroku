@@ -1,1 +1,1 @@
-export $(egrep -v '^#' .env | xargs)
+heroku config:set $(egrep -v '^#' .env | xargs)
