@@ -1,15 +1,18 @@
 .audio-in-card {
-  margin: auto;
-  width: 250px;
-  position: absolute; 
-  bottom: 0;
+  margin-left: auto;
+  margin-right: auto;
+  width: 200px;
 }
 
 .masthead {
-  height: 100vh;
-  min-height: 500px;
+  height: 92vh;
+  min-height: 450px;
   background-image: url('../images/img-header.jpg');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+}
+
+.font-header {
+  color: #CFCFCF;
 }
