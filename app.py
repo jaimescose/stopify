@@ -20,20 +20,6 @@ spotify_api_base = 'https://accounts.spotify.com'
 def index():
     method = request.method
     if method == 'POST':
-        username = request.form['username']
-
-        top_tracks = get_user_top_tracks(username)
-
-        return render_template('result.html', tracks=top_tracks)
-
-    elif method == 'GET':
-        return render_template('index.html')
-
-
-@app.route('/home', methods=['GET', 'POST'])
-def home():
-    method = request.method
-    if method == 'POST':
         session_exists, returned_value = SpotifyProfile.request_token()
 
         if session_exists:
@@ -45,49 +31,14 @@ def home():
         return redirect(spotify_endpoint)
 
     elif method == 'GET':
-        return render_template('spotify_login.html')
+        return render_template('index.html')
 
 
 @app.route('/spotify')
 def spotify():
-    session.clear()
     code = request.args.get('code')
 
-    spotify_endpoint = '/'.join([spotify_api_base, 'api', 'token?'])
-
-    data = {
-        'grant_type': 'authorization_code',
-        'code': code,
-        'redirect_uri': settings.spotipy['SPOTIFY_REDIRECT_URI'],
-        'client_id': settings.spotipy['SPOTIFY_CLIENT_ID'],
-        'client_secret': settings.spotipy['SPOTIFY_CLIENT_SECRET']
-    }
-
-    print(spotify_endpoint)
-    response = requests.post(url=spotify_endpoint, data=data)
-    response = response.json()
-    
-    access_token = response.get("access_token")
-    session['spotify_access_token'] = access_token
-    refresh_token = response.get("refresh_token")
-    session['spotify_refresh_token'] = refresh_token
-
-    sp = SpotifyProfile.auth_user(access_token, refresh_token=False)
-    spotify_user = sp.current_user()
-
-    spotify_profile = SpotifyProfile(
-        username=spotify_user['id'],
-        email=spotify_user['email'],
-        refresh_token=refresh_token
-    )
-    db.session.add(spotify_profile)
-    db.session.commit()
-
-    # user = User(
-    #     spotify_profile_id=spotify_profile.id
-    # )
-    # db.session.add(user)
-    # db.session.commit()
+    spotify_profile = SpotifyProfile.process_callback(code)
 
     return redirect(url_for('user', spotify_profile_id=spotify_profile.id))
 
@@ -99,4 +50,4 @@ def user(spotify_profile_id):
 
     top_tracks = spotify_profile.get_user_top_tracks()
 
-    return render_template('result.html', tracks=top_tracks)
+    return render_template('tracks.html', tracks=top_tracks)

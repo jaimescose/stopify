@@ -1,23 +1,11 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends 'layout.html' %}
 
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="X-UA-Compatible" content="ie=edge">
-  <link rel="stylesheet" href="styles.css">
-  <title>Stopify</title>
-</head>
-
-<body bgcolor=white>
-  <div class="content">
-    <h1 class="title">Stopify</h1>
-    <p class="p">Tweet weekly what you have listen to the most</p>
-  </div>
-  <form method="POST" action="/">
-    <label>Spotify's username: <input type="text" name="username"></label><br>
-    <button value="submit">Submit</button>
+{% block content %}
+<div class="container text-center">
+  <h1>Stopify</h1>
+  <p>Weekly tweets with the tracks you have listened the most</p>
+  <form method="POST" action="{{ url_for('index') }}">
+    <button class="btn btn-success btn-lg" value="submit">Try it!</button>
   </form>
-</body>
-
-</html>
+</div>
+{% endblock content %}

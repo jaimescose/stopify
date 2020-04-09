@@ -1,0 +1,23 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="container">
+    <h1>Your top tracks</h1>
+    <p>This is the list of your top 4 tracks in the last month</p>
+    <div class="card-deck">
+        {% for track in tracks %}
+            <div class="card">
+                <img class="card-img-top" src="{{ track['image']['url'] }}" alt="{{ track['name'] + track['artist'] }}">
+                <div class="card-body">
+                    <h5 class="card-title">{{ track['name'] + ' - ' + track['artist'] }}</h5>
+                    <audio controls class="audio-in-card">
+                        <source src="{{ track['preview'] }}" type="audio/mpeg">
+                        Your browser does not support the audio element.
+                    </audio>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% endblock content %}
