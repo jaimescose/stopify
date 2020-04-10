@@ -1,0 +1,17 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="container">
+    <h1>About</h1>
+    <h2>Credits</h2>
+    <h3>Images</h3>
+    <ul>
+        {% for image in about['credits']['images'] %}
+            <li>Photo by 
+                <a href="{{ image['author_url'] }}" target="_blank">{{ image['author_name'] }} </a>
+                on <a href="{{ image['source_url'] }}" target="_blank">{{ image['source_name'] }} </a>
+            </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endblock content %}

@@ -35,14 +35,27 @@ class SpotifyProfile(db.Model):
     )
 
     @classmethod
-    def request_token(cls):
+    def get_active_spotify_profile(cls):
         if 'spotify_refresh_token' in session:
-            resfresh_token = session['spotify_refresh_token']
+            refresh_token = session['spotify_refresh_token']
 
-            spotify_profile = SpotifyProfile.query.filter_by(refresh_token=resfresh_token).first()
+            sp = SpotifyProfile.auth_user(refresh_token)
+            spotify_user = sp.current_user()
+
+            spotify_profile = SpotifyProfile.query.filter_by(
+                email=spotify_user['email']
+            ).first()
 
             if spotify_profile:
                 return True, spotify_profile
+        else:
+            return False, None
+
+    @classmethod
+    def request_token(cls):
+        session_active, spotify_profile = SpotifyProfile.get_active_spotify_profile()
+        if session_active:
+            return session_active, spotify_profile
 
         required_scopes = 'user-read-email, user-top-read'
         spotify_endpoint = '/'.join([spotify_api_base, 'authorize?'])
@@ -52,7 +65,7 @@ class SpotifyProfile(db.Model):
             'response_type': 'code',
             'redirect_uri': settings.spotipy['SPOTIFY_REDIRECT_URI'],
             'scope': required_scopes,
-            'show_dialog': False
+            'show_dialog': True
         }
 
         spotify_endpoint = spotify_endpoint + (
@@ -66,7 +79,7 @@ class SpotifyProfile(db.Model):
         return False, spotify_endpoint
 
     @classmethod
-    def auth_user(cls, token, refresh_token=True) -> spotipy.Spotify:
+    def auth_user(cls, token, refresh_token=True) -> spotipy.Spotify():
         if refresh_token:
             spotify_endpoint = '/'.join([spotify_api_base, 'api', 'token?'])
 
@@ -80,7 +93,7 @@ class SpotifyProfile(db.Model):
             response = response.json()
 
             token = response.get("access_token")
-            session['spotify_access_token'] = token
+            # session['spotify_access_token'] = token
 
         return spotipy.Spotify(auth=token)
 
@@ -99,12 +112,10 @@ class SpotifyProfile(db.Model):
         response = requests.post(url=spotify_endpoint, data=data)
         response = response.json()
         
-        access_token = response.get("access_token")
-        session['spotify_access_token'] = access_token
         refresh_token = response.get("refresh_token")
         session['spotify_refresh_token'] = refresh_token
 
-        sp = SpotifyProfile.auth_user(access_token, refresh_token=False)
+        sp = SpotifyProfile.auth_user(refresh_token)
         spotify_user = sp.current_user()
 
         spotify_profile = SpotifyProfile.query.filter_by(
@@ -128,8 +139,8 @@ class SpotifyProfile(db.Model):
         
         return spotify_profile
 
-    def get_user_top_tracks(self, time_range='short_term', limit=4):
-        if self.posted_tracks % limit == 0:
+    def get_user_top_tracks(self, time_range='short_term', limit=4, force=False):
+        if self.posted_tracks % limit == 0 or force:
             sp = SpotifyProfile.auth_user(self.refresh_token)
 
             results = sp.current_user_top_tracks(
@@ -138,20 +149,22 @@ class SpotifyProfile(db.Model):
             )
 
             top_tracks = []
-            for item in results['items']:
-                album = item['album']
-                artist = album['artists'][0]['name']
-                image = album['images'][0]
-                track = {
-                    'name': item['name'],
-                    'number': item['track_number'],
-                    'popularity': item['popularity'],
-                    'preview': item['preview_url'],
-                    'artist': artist,
-                    'image': image
-                }
-
-                top_tracks.append(track)
+            items = results['items']
+            if len(items) != 0:
+                for item in results['items']:
+                    album = item['album']
+                    artist = album['artists'][0]['name']
+                    image = album['images'][0]
+                    track = {
+                        'name': item['name'],
+                        'number': item['track_number'],
+                        'popularity': item['popularity'],
+                        'preview': item['preview_url'],
+                        'artist': artist,
+                        'image': image
+                    }
+                    
+                    top_tracks.append(track)
 
             self.tracks = json.dumps(top_tracks)
             db.session.commit()

@@ -4,13 +4,26 @@
   width: 200px;
 }
 
-.masthead {
+.masthead-header {
   height: 92vh;
   min-height: 450px;
   background-image: url('../images/img-header.jpg');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+}
+
+.masthead-error {
+  height: 92vh;
+  min-height: 450px;
+  background-image: url('../images/img-error.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.font-error {
+  color: white;
 }
 
 .font-header {

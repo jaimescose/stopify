@@ -45,8 +45,65 @@ def spotify():
 @app.route('/user/<int:spotify_profile_id>')
 def user(spotify_profile_id):
     # TODO: currently working with spotify_profile_id but should be user_id
-    spotify_profile = SpotifyProfile.query.get(spotify_profile_id)
+    active_session, active_spotify_profile = SpotifyProfile.get_active_spotify_profile()
+    requested_spotify_profile = SpotifyProfile.query.get(spotify_profile_id)
 
-    top_tracks = spotify_profile.get_user_top_tracks()
+    if not active_spotify_profile or (requested_spotify_profile != active_spotify_profile):
+        message = {
+            'text': 'Sorry, you are not allowed to see this :('
+        }
+    else:
+        top_tracks = requested_spotify_profile.get_user_top_tracks()
 
-    return render_template('tracks.html', tracks=top_tracks)
+        if len(top_tracks) != 0:
+            return render_template('tracks.html', tracks=top_tracks)
+        else:
+            message = {
+                'text': 'Sorry, you have nothing to see here :('
+            }   
+    
+    return render_template('error.html', message=message)
+
+
+
+@app.route('/about')
+def about():
+    unsplash_url = 'https://unsplash.com/s/photos/nothing?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText'
+    about = {
+        'credits': {
+            'images': [
+                {
+                    'author_name': 'Joshua Golde',
+                    'author_url': 'https://unsplash.com/@joshgmit?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText',
+                    'source_url': unsplash_url,
+                    'source_name': 'Unsplash'
+                },
+                {
+                    'author_name': 'Laura Skinner',
+                    'author_url': 'https://unsplash.com/@thegreatcatwar?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText',
+                    'source_url': unsplash_url,
+                    'source_name': 'Unsplash'
+                }
+            ]
+        }
+    }
+    return render_template('about.html', about=about)
+
+
+@app.route('/tracks')
+def tracks():
+    _, spotify_profile = SpotifyProfile.get_active_spotify_profile()
+    return redirect(url_for('user', spotify_profile_id=spotify_profile.id))
+
+
+@app.route('/logout')
+def logout():
+    session.pop('spotify_refresh_token')
+
+    return redirect(url_for('index'))
+
+
+@app.route('/login')
+def login():
+    _, spotify_endpoint = SpotifyProfile.request_token()
+    return redirect(spotify_endpoint)
