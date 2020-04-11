@@ -12,7 +12,7 @@ def create_db():
     db.session.commit()
 
 
-@cli.comman('clear_sessions')
+@cli.command('clear_sessions')
 def clear_sessions():
     session.clear()
 
