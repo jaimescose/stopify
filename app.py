@@ -19,14 +19,11 @@ spotify_api_base = 'https://accounts.spotify.com'
 def index():
     method = request.method
     if method == 'POST':
-        session_exists, returned_value = SpotifyProfile.request_token()
+        active_user = User.get_active_user()
+        if active_user:
+            return redirect(url_for('user', user_id=user.id))
 
-        if session_exists:
-            spotify_profile = returned_value
-            
-            return redirect(url_for('user', user_id=spotify_profile.id))
-
-        spotify_endpoint = returned_value
+        spotify_endpoint = SpotifyProfile.request_token()
         return redirect(spotify_endpoint)
 
     elif method == 'GET':
@@ -37,38 +34,38 @@ def index():
 def spotify():
     code = request.args.get('code')
 
-    spotify_profile = SpotifyProfile.process_callback(code)
+    user = SpotifyProfile.process_callback(code)
 
-    return redirect(url_for('user', user_id=spotify_profile.id))
+    return redirect(url_for('user', user_id=user.id))
 
 
 @app.route('/user/<int:user_id>', methods=['GET', 'POST'])
 def user(user_id):
-    user_allowed, spotify_profile = SpotifyProfile.user_allowed(user_id)
-    if user_allowed:
-        force = False
-        if request.method == 'POST':
-            # TODO: currently working with spotify_profile_id but should be user_idrequest.method == 'POST':
-            if request.form['button'] == 'twitter':
-                return 'twitter'
-            elif request.form['button'] == 'refresh':
-                force = True
-        
-        top_tracks = spotify_profile.get_user_top_tracks(force=force)
+    active_user = User.get_active_user()
+    if active_user:
+        if active_user.id == user_id:
+            force = False
+            if request.method == 'POST':
+                if request.form['button'] == 'twitter':
+                    return 'twitter'
+                elif request.form['button'] == 'refresh':
+                    force = True
 
-        if len(top_tracks) != 0:
-            return render_template('tracks.html', tracks=top_tracks)
-        else:
-            message = {
-                'text': 'Sorry, you have nothing to see here :('
-            }
-            return render_template('error.html', message=message)
-    else:
+            top_tracks = active_user.get_top_tracks(force=force)
+
+            if len(top_tracks) != 0:
+                return render_template('tracks.html', tracks=top_tracks)
+            else:
+                message = {
+                    'text': 'Sorry, you have nothing to see here :('
+                }
+            
+    if not message:
         message = {
             'text': 'Sorry, you are not allowed to do this :('
         }
         
-        return render_template('error.html', message=message)
+    return render_template('error.html', message=message)
 
 
 @app.route('/about')
@@ -103,5 +100,5 @@ def logout():
 
 @app.route('/login')
 def login():
-    _, spotify_endpoint = SpotifyProfile.request_token()
+    spotify_endpoint = SpotifyProfile.request_token()
     return redirect(spotify_endpoint)

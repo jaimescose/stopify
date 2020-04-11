@@ -15,9 +15,19 @@ class User(db.Model):
     joined_date = db.Column(db.DateTime, default=datetime.utcnow)
     spotify_profile = db.relationship(
         'SpotifyProfile',
-        backref='spotify_profile',
         uselist=False
     )
+
+    @classmethod
+    def get_active_user(cls):
+        if 'user_id' in session:
+            return User.query.get(session['user_id'])
+
+        return None
+
+    def get_top_tracks(self, force=False):
+        spotify_profile = self.spotify_profile
+        return spotify_profile.get_user_top_tracks(force=force)
 
 
 class SpotifyProfile(db.Model):
@@ -35,22 +45,7 @@ class SpotifyProfile(db.Model):
     )
 
     @classmethod
-    def get_active_spotify_profile(cls):
-        if 'user_id' in session:
-            user_id = session['user_id']
-            # TODO: using spotify_profile by the moment because of user bug
-            spotify_profile = SpotifyProfile.query.get(user_id)
-            
-            return True, spotify_profile
-        else:
-            return False, None
-
-    @classmethod
     def request_token(cls):
-        session_active, spotify_profile = SpotifyProfile.get_active_spotify_profile()
-        if session_active:
-            return session_active, spotify_profile
-
         required_scopes = 'user-read-email, user-top-read'
         spotify_endpoint = '/'.join([spotify_api_base, 'authorize?'])
 
@@ -70,7 +65,7 @@ class SpotifyProfile(db.Model):
             '&show_dialog={show_dialog}'
         ).format_map(data)
 
-        return False, spotify_endpoint
+        return spotify_endpoint
 
     @classmethod
     def auth_user(cls, token, refresh_token=True) -> spotipy.Spotify():
@@ -113,6 +108,7 @@ class SpotifyProfile(db.Model):
         spotify_profile = SpotifyProfile.query.filter_by(
             email=spotify_user['email']
         ).first()
+        user = User.query.get(spotify_profile.user_id)
 
         if not spotify_profile:
             spotify_profile = SpotifyProfile(
@@ -123,15 +119,14 @@ class SpotifyProfile(db.Model):
             db.session.add(spotify_profile)
             db.session.commit()
 
-            # user = User(
-            #     spotify_profile_id=spotify_profile.id
-            # )
-            # db.session.add(user)
-            # db.session.commit()
+        if not user:
+            user = User(spotify_profile=spotify_profile)
+            db.session.add(user)
+            db.session.commit()
 
-        session['user_id'] = spotify_profile.id
+        session['user_id'] = user.id
 
-        return spotify_profile
+        return user
 
     def get_user_top_tracks(self, time_range='short_term', limit=4, force=False):
         if self.posted_tracks % limit == 0 or force:
@@ -166,11 +161,3 @@ class SpotifyProfile(db.Model):
             top_tracks = json.loads(self.tracks)
 
         return top_tracks
-    
-    @classmethod
-    def user_allowed(cls, user_id):
-        active_session, active_spotify_profile = SpotifyProfile.get_active_spotify_profile()
-        requested_spotify_profile = SpotifyProfile.query.get(user_id)
-
-        return active_session or \
-        (active_spotify_profile == requested_spotify_profile), active_spotify_profile
