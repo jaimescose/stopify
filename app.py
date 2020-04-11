@@ -24,7 +24,7 @@ def index():
         if session_exists:
             spotify_profile = returned_value
             
-            return redirect(url_for('user', spotify_profile_id=spotify_profile.id))
+            return redirect(url_for('user', user_id=spotify_profile.id))
 
         spotify_endpoint = returned_value
         return redirect(spotify_endpoint)
@@ -39,31 +39,36 @@ def spotify():
 
     spotify_profile = SpotifyProfile.process_callback(code)
 
-    return redirect(url_for('user', spotify_profile_id=spotify_profile.id))
+    return redirect(url_for('user', user_id=spotify_profile.id))
 
 
-@app.route('/user/<int:spotify_profile_id>')
-def user(spotify_profile_id):
-    # TODO: currently working with spotify_profile_id but should be user_id
-    active_session, active_spotify_profile = SpotifyProfile.get_active_spotify_profile()
-    requested_spotify_profile = SpotifyProfile.query.get(spotify_profile_id)
-
-    if not active_spotify_profile or (requested_spotify_profile != active_spotify_profile):
-        message = {
-            'text': 'Sorry, you are not allowed to see this :('
-        }
-    else:
-        top_tracks = requested_spotify_profile.get_user_top_tracks()
+@app.route('/user/<int:user_id>', methods=['GET', 'POST'])
+def user(user_id):
+    user_allowed, spotify_profile = SpotifyProfile.user_allowed(user_id)
+    if user_allowed:
+        force = False
+        if request.method == 'POST':
+            # TODO: currently working with spotify_profile_id but should be user_idrequest.method == 'POST':
+            if request.form['button'] == 'twitter':
+                return 'twitter'
+            elif request.form['button'] == 'refresh':
+                force = True
+        
+        top_tracks = spotify_profile.get_user_top_tracks(force=force)
 
         if len(top_tracks) != 0:
             return render_template('tracks.html', tracks=top_tracks)
         else:
             message = {
                 'text': 'Sorry, you have nothing to see here :('
-            }   
-    
-    return render_template('error.html', message=message)
-
+            }
+            return render_template('error.html', message=message)
+    else:
+        message = {
+            'text': 'Sorry, you are not allowed to do this :('
+        }
+        
+        return render_template('error.html', message=message)
 
 
 @app.route('/about')
@@ -90,16 +95,9 @@ def about():
     return render_template('about.html', about=about)
 
 
-@app.route('/tracks')
-def tracks():
-    _, spotify_profile = SpotifyProfile.get_active_spotify_profile()
-    return redirect(url_for('user', spotify_profile_id=spotify_profile.id))
-
-
 @app.route('/logout')
 def logout():
-    session.pop('spotify_refresh_token')
-
+    session.pop('user_id')
     return redirect(url_for('index'))
 
 

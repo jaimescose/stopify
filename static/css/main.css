@@ -22,10 +22,22 @@
   background-repeat: no-repeat;
 }
 
+.masthead-tracks {
+  height: 10vh;
+  min-height: 200px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
 .font-error {
   color: white;
 }
 
 .font-header {
   color: #CFCFCF;
+}
+
+.twitter-button {
+  background: url('../images/twitter-signin.jpg')
 }

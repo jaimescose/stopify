@@ -1,9 +1,28 @@
 {% extends 'layout.html' %}
 
 {% block content %}
+<header class="masthead-tracks">
+    <div class="container h-100">
+        <div class="row h-50 align-items-center">
+            <div class="col-12">
+                <h1>Your top tracks</h1>
+                <p>This is the list of your top tracks in the last 4 weeks</p>
+                <p>Sign in with Twitter to share your top tracks weekly</p>
+                <form method="POST" action="{{ url_for('user', user_id=session['user_id']) }}">
+                    <div class="row">
+                        <div class="col-sm-2">
+                            <button class="btn btn-primary btn-small" type="submit" name="button" value="twitter">Sign in with Twitter</button>
+                        </div>
+                        <div class="col-sm-2">
+                            <button class="btn btn-primary btn-small" type="submit" name="button" value="refresh">Refresh tracks</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</header>
 <div class="container">
-    <h1>Your top tracks</h1>
-    <p>This is the list of your top 4 tracks in the last month</p>
     <div class="card-deck">
         {% for track in tracks %}
             <div class="card">

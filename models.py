@@ -36,18 +36,12 @@ class SpotifyProfile(db.Model):
 
     @classmethod
     def get_active_spotify_profile(cls):
-        if 'spotify_refresh_token' in session:
-            refresh_token = session['spotify_refresh_token']
-
-            sp = SpotifyProfile.auth_user(refresh_token)
-            spotify_user = sp.current_user()
-
-            spotify_profile = SpotifyProfile.query.filter_by(
-                email=spotify_user['email']
-            ).first()
-
-            if spotify_profile:
-                return True, spotify_profile
+        if 'user_id' in session:
+            user_id = session['user_id']
+            # TODO: using spotify_profile by the moment because of user bug
+            spotify_profile = SpotifyProfile.query.get(user_id)
+            
+            return True, spotify_profile
         else:
             return False, None
 
@@ -93,7 +87,6 @@ class SpotifyProfile(db.Model):
             response = response.json()
 
             token = response.get("access_token")
-            # session['spotify_access_token'] = token
 
         return spotipy.Spotify(auth=token)
 
@@ -113,7 +106,6 @@ class SpotifyProfile(db.Model):
         response = response.json()
         
         refresh_token = response.get("refresh_token")
-        session['spotify_refresh_token'] = refresh_token
 
         sp = SpotifyProfile.auth_user(refresh_token)
         spotify_user = sp.current_user()
@@ -136,7 +128,9 @@ class SpotifyProfile(db.Model):
             # )
             # db.session.add(user)
             # db.session.commit()
-        
+
+        session['user_id'] = spotify_profile.id
+
         return spotify_profile
 
     def get_user_top_tracks(self, time_range='short_term', limit=4, force=False):
@@ -172,3 +166,11 @@ class SpotifyProfile(db.Model):
             top_tracks = json.loads(self.tracks)
 
         return top_tracks
+    
+    @classmethod
+    def user_allowed(cls, user_id):
+        active_session, active_spotify_profile = SpotifyProfile.get_active_spotify_profile()
+        requested_spotify_profile = SpotifyProfile.query.get(user_id)
+
+        return active_session or \
+        (active_spotify_profile == requested_spotify_profile), active_spotify_profile

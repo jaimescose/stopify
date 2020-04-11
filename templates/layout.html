@@ -21,7 +21,7 @@
                     </li>
                 </ul>
                 <ul class="nav navbar-nav navbar-right">
-                    {% if 'spotify_refresh_token' in session %}
+                    {% if 'user_id' in session %}
                         <div class="btn-nav">
                             <a class="btn btn-danger btn-small navbar-btn" href="{{ url_for('logout') }}">Logout</a>
                         </div>
