@@ -10,7 +10,7 @@ db = SQLAlchemy(app)
 import settings
 import requests
 
-from models import User, SpotifyProfile
+from models import User, SpotifyProfile, TwitterProfile
 
 spotify_api_base = 'https://accounts.spotify.com'
 
@@ -39,15 +39,26 @@ def spotify():
     return redirect(url_for('user', user_id=user.id))
 
 
+@app.route('/twitter')
+def twitter():
+    oauth_token = request.args.get('oauth_token')
+    oauth_verifier = request.args.get('oauth_verifier')
+
+    TwitterProfile.process_callback(oauth_token, oauth_verifier)
+
+
 @app.route('/user/<int:user_id>', methods=['GET', 'POST'])
 def user(user_id):
     active_user = User.get_active_user()
+    message = None
     if active_user:
         if active_user.id == user_id:
             force = False
             if request.method == 'POST':
                 if request.form['button'] == 'twitter':
-                    return 'twitter'
+                    twitter_endpoint = TwitterProfile.request_token()
+                    return redirect(twitter_endpoint)
+                    
                 elif request.form['button'] == 'refresh':
                     force = True
 
