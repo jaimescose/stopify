@@ -44,7 +44,9 @@ def twitter():
     oauth_token = request.args.get('oauth_token')
     oauth_verifier = request.args.get('oauth_verifier')
 
-    TwitterProfile.process_callback(oauth_token, oauth_verifier)
+    user = TwitterProfile.process_callback(oauth_token, oauth_verifier)
+    
+    return user.twitter_profile.username
 
 
 @app.route('/user/<int:user_id>', methods=['GET', 'POST'])
