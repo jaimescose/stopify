@@ -24,3 +24,5 @@ twitter = {
     'TWITTER_REDIRECT_URI': os.getenv('TWITTER_REDIRECT_URI'),
     'ENCRYPTION_KEY': os.getenv('TWITTER_ENCRYPTION_KEY')
 }
+
+domain_url = 'https://stopifybot.herokuapp.com'

@@ -45,8 +45,9 @@ def twitter():
     oauth_verifier = request.args.get('oauth_verifier')
 
     user = TwitterProfile.process_callback(oauth_token, oauth_verifier)
-    
-    return user.twitter_profile.username
+    user.post_track_status()
+
+    return redirect(url_for('user', user_id=user.id))
 
 
 @app.route('/user/<int:user_id>', methods=['GET', 'POST'])
@@ -57,12 +58,16 @@ def user(user_id):
         if active_user.id == user_id:
             force = False
             if request.method == 'POST':
-                if request.form['button'] == 'twitter':
+                if request.form['button'] == 'refresh':
+                    force = True
+
+                elif request.form['button'] == 'twitter-share':
                     twitter_endpoint = TwitterProfile.request_token()
                     return redirect(twitter_endpoint)
+
+                elif request.form['button'] == 'twitter-stop':
+                    active_user.stop_posting_tweets()
                     
-                elif request.form['button'] == 'refresh':
-                    force = True
 
             top_tracks = active_user.get_top_tracks(force=force)
 
