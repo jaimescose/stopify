@@ -10,10 +10,16 @@
                 <p>Sign in with Twitter to share your top tracks weekly</p>
                 <form method="POST" action="{{ url_for('user', user_id=session['user_id']) }}">
                     <div class="row">
-                        <div class="col-sm-2">
-                            <button class="btn btn-primary btn-small" type="submit" name="button" value="twitter">Sign in with Twitter</button>
-                        </div>
-                        <div class="col-sm-2">
+                        {% if not session['twitter']%}
+                            <div class="col-sm-3">
+                                <button class="btn btn-primary btn-small" type="submit" name="button" value="twitter-share">Sign in with Twitter</button>
+                            </div>
+                        {% else %}
+                            <div class="col-sm-3">
+                                <button class="btn btn-danger btn-small" type="submit" name="button" value="twitter-stop">Stop sharing</button>
+                            </div>
+                        {% endif %}
+                        <div class="col-sm-3">
                             <button class="btn btn-primary btn-small" type="submit" name="button" value="refresh">Refresh tracks</button>
                         </div>
                     </div>

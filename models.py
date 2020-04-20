@@ -32,9 +32,73 @@ class User(db.Model):
 
         return None
 
-    def get_top_tracks(self, force=False):
+    def stop_posting_tweets(self):
+        self.is_active = False
+        db.session.commit()
+
+        session['twitter'] = False
+
+    def get_top_tracks(self, time_range='short_term', limit=4, force=False):
         spotify_profile = self.spotify_profile
-        return spotify_profile.get_user_top_tracks(force=force)
+
+        if not force:
+            top_tracks = spotify_profile.tracks
+            if top_tracks:
+                return json.loads(top_tracks)
+
+        sp = SpotifyProfile.auth_user(spotify_profile.refresh_token)
+
+        results = sp.current_user_top_tracks(
+            time_range=time_range, 
+            limit=limit
+        )
+
+        top_tracks = []
+        items = results['items']
+        if len(items) != 0:
+            for item in results['items']:
+                album = item['album']
+                artist = album['artists'][0]['name']
+                image = album['images'][0]
+                track = {
+                    'name': item['name'],
+                    'number': item['track_number'],
+                    'popularity': item['popularity'],
+                    'preview': item['preview_url'],
+                    'artist': artist,
+                    'image': image,
+                    'url': item['external_urls']['spotify']
+                }
+                
+                top_tracks.append(track)
+
+        spotify_profile.tracks = json.dumps(top_tracks)
+        db.session.commit()
+
+        return top_tracks
+    
+    def post_track_status(self):
+        track = self.get_top_tracks(force=True)[0]
+        
+        twitter_profile = self.twitter_profile
+
+        credentials = TwitterProfile.get_credentials()
+        api = twitter.Api(
+            consumer_key=credentials[0], 
+            consumer_secret=credentials[1],
+            access_token_key=twitter_profile.token,
+            access_token_secret=twitter_profile.token_secret
+        )
+
+        domain_url = settings.domain_url
+        tweet = f"""{track['name']} - {track['artist']}: {track['url']}
+        This is one of my most listened songs on Spotify the last few weeks.
+        
+        Check yours at: {domain_url}"""
+
+        api.PostUpdate(tweet)
+
+        return None
 
 
 class SpotifyProfile(db.Model):
@@ -149,44 +213,9 @@ class SpotifyProfile(db.Model):
             user = User.query.get(spotify_profile.user_id)            
 
         session['user_id'] = user.id
+        session['twitter'] = False
 
         return user
-
-    def get_user_top_tracks(self, time_range='short_term', limit=4, force=False):
-        if not force:
-            top_tracks = self.tracks
-            if top_tracks:
-                return json.loads(top_tracks)
-
-        sp = SpotifyProfile.auth_user(self.refresh_token)
-
-        results = sp.current_user_top_tracks(
-            time_range=time_range, 
-            limit=limit
-        )
-
-        top_tracks = []
-        items = results['items']
-        if len(items) != 0:
-            for item in results['items']:
-                album = item['album']
-                artist = album['artists'][0]['name']
-                image = album['images'][0]
-                track = {
-                    'name': item['name'],
-                    'number': item['track_number'],
-                    'popularity': item['popularity'],
-                    'preview': item['preview_url'],
-                    'artist': artist,
-                    'image': image
-                }
-                
-                top_tracks.append(track)
-
-        self.tracks = json.dumps(top_tracks)
-        db.session.commit()
-
-        return top_tracks
 
 
 class TwitterProfile(db.Model):
@@ -212,11 +241,11 @@ class TwitterProfile(db.Model):
 
     @property
     def token_secret(self):
-        return decrypt_token(self.c, 'twitter')
+        return decrypt_token(self._token_secret, 'twitter')
 
     @token_secret.setter
     def token_secret(self, value):
-        self.token_secret = encrypt_token(value, 'twitter')
+        self._token_secret = encrypt_token(value, 'twitter')
 
     @classmethod
     def get_credentials(cls):
@@ -252,7 +281,7 @@ class TwitterProfile(db.Model):
         return twitter_endpoint
 
     @classmethod
-    def process_callback(cls, oauth_token, oauth_verifier):
+    def process_callback(cls, oauth_token, oauth_verifier) -> User:
         twitter_endpoint = '/'.join([twitter_api_base, 'access_token'])
 
         data = {
@@ -272,6 +301,7 @@ class TwitterProfile(db.Model):
             twitter_id = twitter_id
         ).first()
 
+        user = User.query.get(session['user_id'])
         if not twitter_profile:
             twitter_profile = TwitterProfile(
                 twitter_id=twitter_id,
@@ -282,6 +312,9 @@ class TwitterProfile(db.Model):
             db.session.add(twitter_profile)
             db.session.commit()
 
-            user = User.query.get(session['user_id'])
             user.twitter_profile = twitter_profile
             db.session.commit()
+        
+        session['twitter'] = True
+
+        return user
