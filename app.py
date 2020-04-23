@@ -56,20 +56,21 @@ def user(user_id):
     message = None
     if active_user:
         if active_user.id == user_id:
-            force = False
             if request.method == 'POST':
-                if request.form['button'] == 'refresh':
-                    force = True
+                if request.form['button'] == 'twitter-share':
+                    authenticate = False
+                    if 'twitter' in session:
+                        if session['twitter']:
+                            authenticate = True
 
-                elif request.form['button'] == 'twitter-share':
-                    twitter_endpoint = TwitterProfile.request_token()
+                    twitter_endpoint = TwitterProfile.request_token(authenticate)
                     return redirect(twitter_endpoint)
 
                 elif request.form['button'] == 'twitter-stop':
                     active_user.stop_posting_tweets()
                     
 
-            top_tracks = active_user.get_top_tracks(force=force)
+            top_tracks = active_user.get_top_tracks()
 
             if len(top_tracks) != 0:
                 return render_template('tracks.html', tracks=top_tracks)
@@ -101,6 +102,12 @@ def about():
                 {
                     'author_name': 'Laura Skinner',
                     'author_url': 'https://unsplash.com/@thegreatcatwar?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText',
+                    'source_url': unsplash_url,
+                    'source_name': 'Unsplash'
+                },
+                {
+                    'author_name': 'Adrian Korte',
+                    'author_url': 'https://unsplash.com/@adkorte?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText',
                     'source_url': unsplash_url,
                     'source_name': 'Unsplash'
                 }

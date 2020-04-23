@@ -1,11 +1,13 @@
 from app import db
 import settings
 
+
 import json
 from sqlalchemy.types import JSON
+from sqlalchemy.orm.attributes import flag_modified
 from flask import session
 import requests
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from requests_oauthlib import OAuth1Session
 
 import spotipy
@@ -23,7 +25,7 @@ class User(db.Model):
     spotify_profile = db.relationship('SpotifyProfile', uselist=False)
     twitter_profile = db.relationship('TwitterProfile', uselist=False)
     last_post_date = db.Column(db.DateTime, nullable=True)
-    posted_tracks = db.Column(db.Integer, default=0)
+    posted_tracks = db.Column(JSON)
 
     @classmethod
     def get_active_user(cls):
@@ -38,13 +40,8 @@ class User(db.Model):
 
         session['twitter'] = False
 
-    def get_top_tracks(self, time_range='short_term', limit=4, force=False):
+    def get_top_tracks(self, time_range='short_term', limit=4):
         spotify_profile = self.spotify_profile
-
-        if not force:
-            top_tracks = spotify_profile.tracks
-            if top_tracks:
-                return json.loads(top_tracks)
 
         sp = SpotifyProfile.auth_user(spotify_profile.refresh_token)
 
@@ -61,6 +58,7 @@ class User(db.Model):
                 artist = album['artists'][0]['name']
                 image = album['images'][0]
                 track = {
+                    'id': item['id'],
                     'name': item['name'],
                     'number': item['track_number'],
                     'popularity': item['popularity'],
@@ -72,31 +70,71 @@ class User(db.Model):
                 
                 top_tracks.append(track)
 
-        spotify_profile.tracks = json.dumps(top_tracks)
-        db.session.commit()
-
         return top_tracks
     
-    def post_track_status(self):
-        track = self.get_top_tracks(force=True)[0]
-        
-        twitter_profile = self.twitter_profile
+    def post_track_status(self, allow_check=True):
+        allow_post = True
+        if allow_check:
+            last_post_date = self.last_post_date
+            if last_post_date:
+                today = date.today()
+                previous_date = today - timedelta(days=7)
 
-        credentials = TwitterProfile.get_credentials()
-        api = twitter.Api(
-            consumer_key=credentials[0], 
-            consumer_secret=credentials[1],
-            access_token_key=twitter_profile.token,
-            access_token_secret=twitter_profile.token_secret
-        )
+                if previous_date != self.last_post_date:
+                    allow_post = False
 
-        domain_url = settings.domain_url
-        tweet = f"""{track['name']} - {track['artist']}: {track['url']}
-        This is one of my most listened songs on Spotify the last few weeks.
-        
-        Check yours at: {domain_url}"""
+        if allow_post:        
+            top_tracks = self.get_top_tracks()
 
-        api.PostUpdate(tweet)
+            posted_tracks_ids = self.posted_tracks
+            if not posted_tracks_ids:
+                posted_tracks_ids = []
+                track = top_tracks[0]
+            else:
+                # posted_tracks_ids = json.loads(posted_tracks_ids)
+                min_found = 5
+                for track_item in top_tracks:
+                    if track_item['id'] in posted_tracks_ids:
+                        found = posted_tracks_ids.index(track_item['id'])
+
+                        if found < min_found:
+                            min_found = found
+                            track = track_item
+                    else:
+                        track = track_item
+                        break
+
+            twitter_profile = self.twitter_profile
+
+            credentials = TwitterProfile.get_credentials()
+            api = twitter.Api(
+                consumer_key=credentials[0], 
+                consumer_secret=credentials[1],
+                access_token_key=twitter_profile.token,
+                access_token_secret=twitter_profile.token_secret
+            )
+
+            domain_url = settings.domain_url
+            tweet = (f"{track['name']} - {track['artist']}: {track['url']}\n"
+            "This is one of my most listened songs on Spotify the last few weeks.\n\n"
+            f"Check yours at: {domain_url}")
+
+            try:
+                status = api.PostUpdate(tweet)
+            except Exception as e:
+                print(f'Unable to post status on user {self.id}. Error: {e}')
+            else:
+                if status:
+                    self.last_post_date = date.today()
+
+                    if len(posted_tracks_ids) == 4:
+                        posted_tracks_ids.pop(0)
+                    posted_tracks_ids.append(track['id'])
+                    self.posted_tracks = posted_tracks_ids
+
+                    flag_modified(self, 'posted_tracks')
+
+                    db.session.commit()
 
         return None
 
@@ -105,7 +143,6 @@ class SpotifyProfile(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    tracks = db.Column(JSON)
     user_id = db.Column(
         db.Integer,
         db.ForeignKey('user.id'),
@@ -220,7 +257,7 @@ class SpotifyProfile(db.Model):
 
 class TwitterProfile(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    twitter_id = db.Column(db.Integer)
+    twitter_id = db.Column(db.String)
     username = db.Column(db.String(80), unique=True, nullable=True)
     user_id = db.Column(
         db.Integer,
@@ -255,7 +292,7 @@ class TwitterProfile(db.Model):
             settings.twitter['ENCRYPTION_KEY']
     
     @classmethod
-    def request_token(cls):
+    def request_token(cls, authenticate=True):
         twitter_endpoint = '/'.join([twitter_api_base, 'request_token'])
 
         credentials = TwitterProfile.get_credentials()
@@ -275,7 +312,11 @@ class TwitterProfile(db.Model):
         oauth_token_secret = oauth_token_secret.split('=')[1]
         oauth_callback_confirmed = oauth_callback_confirmed.split('=')[1]
 
-        twitter_endpoint = '/'.join([twitter_api_base, 'authenticate?oauth_token={}'])
+        if authenticate:
+            method = 'authenticate'
+        else:
+            method = 'authorize'
+        twitter_endpoint = '/'.join([twitter_api_base, method + '?oauth_token={}'])
         twitter_endpoint = twitter_endpoint.format(oauth_token)
 
         return twitter_endpoint
@@ -294,7 +335,7 @@ class TwitterProfile(db.Model):
         oauth_token, oauth_token_secret, twitter_id, username = response.text.split('&')
         oauth_token = oauth_token.split('=')[1]
         oauth_token_secret = oauth_token_secret.split('=')[1]
-        twitter_id = twitter_id.split('=')[1]
+        twitter_id = str(twitter_id.split('=')[1])
         username = username.split('=')[1]
 
         twitter_profile = TwitterProfile.query.filter_by(
@@ -313,7 +354,9 @@ class TwitterProfile(db.Model):
             db.session.commit()
 
             user.twitter_profile = twitter_profile
-            db.session.commit()
+        
+        user.is_active = True
+        db.session.commit()
         
         session['twitter'] = True
 

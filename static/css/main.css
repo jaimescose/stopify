@@ -22,9 +22,8 @@
   background-repeat: no-repeat;
 }
 
-.masthead-tracks {
-  height: 10vh;
-  min-height: 250px;
+.about-img {
+  background: url('../images/img-about.jpg');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
