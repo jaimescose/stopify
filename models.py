@@ -30,7 +30,11 @@ class User(db.Model):
     @classmethod
     def get_active_user(cls):
         if 'user_id' in session:
-            return User.query.get(session['user_id'])
+            try:
+                return User.query.get(session['user_id'])
+            except Exception as e:
+                session.clear()
+                print(f"Unable to fetch user with active session {session['user_id']}. Error: {e}")
 
         return None
 
@@ -125,6 +129,7 @@ class User(db.Model):
                 print(f'Unable to post status on user {self.id}. Error: {e}')
             else:
                 if status:
+                    status_url = f'https://twitter.com/{twitter_profile.username}/status/{status.id}'
                     self.last_post_date = date.today()
 
                     if len(posted_tracks_ids) == 4:
@@ -135,6 +140,8 @@ class User(db.Model):
                     flag_modified(self, 'posted_tracks')
 
                     db.session.commit()
+
+                    return status_url
 
         return None
 

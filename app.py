@@ -10,7 +10,7 @@ db = SQLAlchemy(app)
 import settings
 import requests
 
-from models import User, SpotifyProfile, TwitterProfile
+from models import TwitterProfile, SpotifyProfile, User
 
 spotify_api_base = 'https://accounts.spotify.com'
 
@@ -45,7 +45,10 @@ def twitter():
     oauth_verifier = request.args.get('oauth_verifier')
 
     user = TwitterProfile.process_callback(oauth_token, oauth_verifier)
-    user.post_track_status()
+    status_url = user.post_track_status()
+
+    if status_url:
+        return redirect(status_url)
 
     return redirect(url_for('user', user_id=user.id))
 
@@ -119,7 +122,7 @@ def about():
 
 @app.route('/logout')
 def logout():
-    session.pop('user_id')
+    session.clear()
     return redirect(url_for('index'))
 
 
