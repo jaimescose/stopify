@@ -12,4 +12,4 @@ users = User.query.filter_by(is_active=True).filter(User.last_post_date == previ
 for user in users:
     user.post_track_status(allow_check=False)
 
-print(f'Statuses posted for {len(users)} users')
+print(f'Statuses posted for {user.count()} users')
