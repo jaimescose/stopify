@@ -254,10 +254,14 @@ class SpotifyProfile(db.Model):
             db.session.add(user)
             db.session.commit()
         else:
-            user = User.query.get(spotify_profile.user_id)            
+            user = User.query.get(spotify_profile.user_id)
 
         session['user_id'] = user.id
         session['twitter'] = False
+
+        twitter_profile = TwitterProfile.query.filter_by(user_id=user.id).first()
+        if twitter_profile:
+            session['twitter'] = True
 
         return user
 
