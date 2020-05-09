@@ -363,9 +363,12 @@ class TwitterProfile(db.Model):
             )
             db.session.add(twitter_profile)
             db.session.commit()
-
+            
             user.twitter_profile = twitter_profile
-        
+        else:
+            twitter_profile.token = oauth_token
+            twitter_profile.token_secret = oauth_token_secret
+                
         user.is_active = True
         db.session.commit()
         
